@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/listicktv/listick-seanime/compare/v0.3.1...v0.4.0) (2026-10-22)
+
+
+### Features
+
+* Seanime cards with AniList data, Home rows picker in the tray ([cfdae60](https://github.com/listicktv/listick-seanime/commit/cfdae60cd08e93a8360bdda0f7f3dbe96367b63a))
+
 ## [0.3.1](https://github.com/listicktv/listick-seanime/compare/v0.3.0...v0.3.1) (2026-10-22)
 
 
