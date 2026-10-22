@@ -3,7 +3,8 @@
 A [Seanime](https://seanime.app) plugin for [Listick](https://github.com/listicktv/listick), anime only:
 
 - **Tracking:** episodes Seanime counts go to your Listick history; what's playing shows as watching now.
-- **Tray:** your anime Up next, Plan to watch and lists, each with Open.
+- **Tray:** your anime Up next and Plan to watch; your lists, followed lists, Watched and Rated; and Discover (For you and
+  Listick's anime rows), each title with Open.
 
 AniList updates are unchanged.
 

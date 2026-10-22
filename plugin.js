@@ -12,9 +12,9 @@ function init() {
     const base = ($getUserPreference('url') || '').trim().replace(/\/+$/, ''), key = ($getUserPreference('key') || '').trim();
     const ready = !!base && !!key;
     let loadedAt = 0;
-    const call = (method, path, body) => ctx.fetch(base + path, {
+    const call = (method, path, body, extra) => ctx.fetch(base + path, {
       method, timeout: 20, body: body ? JSON.stringify(body) : undefined,
-      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json', ...extra },
     });
     // true: done or refused for good; false: try again
     const send = async (body) => {
@@ -64,15 +64,21 @@ function init() {
     }
 
     // ---------- tray ----------
-    const tray = ctx.newTray({ iconUrl: ICON, withContent: true, width: '340px', minHeight: '120px' });
+    const tray = ctx.newTray({ iconUrl: ICON, withContent: true, width: '400px', minHeight: '120px' });
     const data = ctx.state(null), error = ctx.state(''), loading = ctx.state(false);
+    const listPick = ctx.fieldRef(''), rowPick = ctx.fieldRef('');
+    listPick.onValueChange(() => tray.update());
+    rowPick.onValueChange(() => tray.update());
+    let etag = '';
     const load = async (force) => {
       if (!ready || loading.get() || (!force && Date.now() - loadedAt < 60000)) return;
       loading.set(true);
       try {
-        const r = await call('GET', '/api/v1/anime');
-        if (r.ok) {
-          const d = r.json();
+        const r = await call('GET', '/api/v1/anime', undefined, etag && data.get() ? { 'if-none-match': etag } : {});
+        if (r.status === 304) { error.set(''); loadedAt = Date.now(); }
+        else if (r.ok) {
+          const d = r.json(), h = r.headers || {};
+          etag = h.etag || h.Etag || h.ETag || '';
           data.set(d); error.set(''); loadedAt = Date.now();
           tray.updateBadge({ number: (d.upNext || []).length, intent: 'info' });
         } else error.set(r.status === 401 ? 'Wrong API key' : r.status === 403 ? 'This key is not a Seanime key' : `Listick answered ${r.status}`);
@@ -94,7 +100,16 @@ function init() {
       ], { gap: 0, style: { flex: '1', minWidth: '0' } }),
       tray.button('Open', { size: 'xs', intent: 'gray-subtle', onClick: ctx.eventHandler(`listick-open-${x.anilistId}`, () => ctx.screen.navigateTo('/entry', { id: String(x.anilistId) })) }),
     ], { gap: 2, style: { alignItems: 'center' } });
-    const rows = (xs, none) => (xs && xs.length ? xs.slice(0, 30).map(row) : [tray.text(none, { style: muted })]);
+    const rows = (xs, none) => (xs && xs.length ? xs.map(row) : [tray.text(none, { style: muted })]);
+    // a dropdown of lists, then the picked one's titles
+    const picker = (label, groups, ref, none) => {
+      if (!groups || !groups.length) return [tray.text(none, { style: muted })];
+      const g = groups.find((x) => x.id === ref.current) || groups[0];
+      return [
+        tray.select(label, { fieldRef: ref, value: g.id, options: groups.map((x) => ({ label: x.owner ? `${x.name} · ${x.owner}` : x.name, value: x.id })) }),
+        ...rows(g.items, ''),
+      ];
+    };
 
     tray.render(() => {
       const title = tray.flex([
@@ -108,11 +123,12 @@ function init() {
         title,
         ...(error.get() ? [tray.text(error.get(), { style: muted })] : []),
         tray.tabs({ defaultValue: 'upnext', items: [
-          tray.tabsList([tray.tabsTrigger(tray.text('Up next'), { value: 'upnext' }), tray.tabsTrigger(tray.text('Plan to watch'), { value: 'plan' }), tray.tabsTrigger(tray.text('Lists'), { value: 'lists' })]),
+          tray.tabsList([tray.tabsTrigger(tray.text('Up next'), { value: 'upnext' }), tray.tabsTrigger(tray.text('Plan'), { value: 'plan' }),
+            tray.tabsTrigger(tray.text('Lists'), { value: 'lists' }), tray.tabsTrigger(tray.text('Discover'), { value: 'discover' })]),
           tray.tabsContent(rows(d.upNext, 'Nothing up next'), { value: 'upnext' }),
           tray.tabsContent(rows(d.plan, 'No anime in Plan to watch'), { value: 'plan' }),
-          tray.tabsContent((d.lists || []).length ? d.lists.flatMap((l) => [tray.text(l.name, { style: { fontWeight: '600', fontSize: '12px', marginTop: '6px' } }), ...rows(l.items, '')])
-            : [tray.text('No lists with anime', { style: muted })], { value: 'lists' }),
+          tray.tabsContent(picker('List', d.lists, listPick, 'No lists with anime'), { value: 'lists' }),
+          tray.tabsContent(picker('Row', d.discover, rowPick, 'No rows yet'), { value: 'discover' }),
         ] }),
       ], { gap: 2 });
     });

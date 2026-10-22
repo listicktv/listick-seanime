@@ -8,7 +8,9 @@ const SOURCE = fs.readFileSync(new URL('../plugin.js', import.meta.url), 'utf8')
 const ANIME = {
   upNext: [{ anilistId: 1000, key: 'tmdb:tv:1429', title: 'Attack on Titan', year: 2019, poster: 'https://img/p.jpg', episode: 4 }],
   plan: [{ anilistId: 7001, key: 'tmdb:tv:7000', title: 'Later', year: 2024, poster: null }],
-  lists: [{ id: 'abc123', name: 'Favourites', items: [{ anilistId: 3000, key: 'kitsu:anime:300', title: 'Solo', year: 2020, poster: null }] }],
+  lists: [{ id: 'abc123', name: 'Favourites', items: [{ anilistId: 3000, key: 'kitsu:anime:300', title: 'Solo', year: 2020, poster: null }] },
+    { id: 'def456', name: 'Kai picks', owner: 'kai', items: [{ anilistId: 21, key: 'tmdb:tv:37854', title: 'One Piece', year: 1999, poster: null }] }],
+  discover: [{ id: 'anime-trending', name: 'Trending anime', items: [{ anilistId: 154587, key: 'tmdb:tv:209867', title: 'Frieren', year: 2023, poster: null }] }],
 };
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const plain = (x) => JSON.parse(JSON.stringify(x));   // cross-context objects
@@ -23,14 +25,17 @@ function seanime(prefs, fails = []) {
   const tray = new Proxy({
     render: (f) => { renderFn = f; }, onOpen: (f) => { openFn = f; }, update: () => {}, updateBadge: (b) => { badge = b; },
   }, { get: (t, k) => t[k] || component(k) });
+  const refs = [];
   const ctx = {
     fetch: async (url, opts) => {
-      calls.push({ url, method: opts.method, body: opts.body ? JSON.parse(opts.body) : null, auth: opts.headers.authorization });
-      if (url.endsWith('/api/v1/anime')) return { ok: true, status: 200, json: () => ANIME };
+      calls.push({ url, method: opts.method, body: opts.body ? JSON.parse(opts.body) : null, auth: opts.headers.authorization, inm: opts.headers['if-none-match'] });
+      if (url.endsWith('/api/v1/anime')) return opts.headers['if-none-match'] === '"t1"' ? { ok: false, status: 304, headers: {}, json: () => null }
+        : { ok: true, status: 200, headers: { Etag: '"t1"' }, json: () => ANIME };
       const status = fails.shift() || 200;
       return { ok: status < 300, status, json: () => ({}) };
     },
     state: (v) => ({ get: () => v, set: (n) => { v = n; } }),
+    fieldRef: (v) => { const r = { current: v, cbs: [], setValue: (n) => { r.current = n; r.cbs.forEach((f) => f(n)); }, onValueChange: (f) => r.cbs.push(f) }; refs.push(r); return r; },
     newTray: () => tray, setInterval: () => () => {},
     eventHandler: (k, f) => { handlers[k] = f; return k; },
     screen: { navigateTo: (path, params) => nav.push([path, params]) },
@@ -47,7 +52,7 @@ function seanime(prefs, fails = []) {
     else if (node && node.args) node.args.forEach((a) => (typeof a === 'string' && node.type === 'text' ? out.push(a) : typeof a === 'object' ? texts(a.items || a, out) : null));
     return out;
   };
-  return { calls, handlers, listeners, video, nav, hook, render: () => texts(renderFn()), open: () => openFn(), badge: () => badge };
+  return { calls, handlers, listeners, video, nav, refs, hook, render: () => texts(renderFn()), open: () => openFn(), badge: () => badge };
 }
 
 test('without an address and key it asks for them and calls nothing', async () => {
@@ -84,13 +89,21 @@ test('the tray shows Up next, Plan to watch and lists, opens an anime, and badge
   await tick();
   assert.equal(s.calls[0].url, 'https://listick.example/api/v1/anime');
   const text = s.render();
-  for (const t of ['Attack on Titan', 'Episode 4', 'Later', 'Favourites', 'Solo']) assert.ok(text.includes(t), t);
+  for (const t of ['Attack on Titan', 'Episode 4', 'Later', 'Solo', 'Frieren']) assert.ok(text.includes(t), t);
+  assert.ok(!text.includes('One Piece'), 'only the picked list shows');
+  s.refs[0].setValue('def456');
+  assert.ok(s.render().includes('One Piece'), 'another list picked');
   assert.deepEqual(plain(s.badge()), { number: 1, intent: 'info' });
   s.handlers['listick-open-1000']();
   assert.deepEqual(plain(s.nav), [['/entry', { id: '1000' }]]);
   s.open();
   await tick();
   assert.equal(s.calls.filter((c) => c.method === 'GET').length, 1, 'opening again within a minute uses what it has');
+  s.handlers['listick-refresh']();
+  await tick();
+  const gets = s.calls.filter((c) => c.method === 'GET');
+  assert.equal(gets.at(-1).inm, '"t1"', 'a refresh asks whether anything changed');
+  assert.ok(s.render().includes('Frieren'), 'a 304 keeps what it has');
 });
 
 test('the built-in player and other players show as watching now, then stopped', async () => {
