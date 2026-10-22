@@ -1,0 +1,24 @@
+# release-please: release PR; merging bumps manifest.json, tags vX.Y.Z, publishes the release with plugin.js attached.
+name: Release
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+      - uses: actions/checkout@v6
+        if: steps.release.outputs.release_created == 'true'
+      - if: steps.release.outputs.release_created == 'true'
+        run: gh release upload "${{ steps.release.outputs.tag_name }}" plugin.js
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,14 @@
+{
+  "name": "listick-seanime",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check plugin.js && node -e \"JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))\""
+  }
+}

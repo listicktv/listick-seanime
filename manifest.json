@@ -1,0 +1,36 @@
+{
+  "id": "listick",
+  "name": "Listick",
+  "version": "0.0.0",
+  "manifestURI": "https://raw.githubusercontent.com/listicktv/listick-seanime/main/manifest.json",
+  "payloadURI": "https://github.com/listicktv/listick-seanime/releases/latest/download/plugin.js",
+  "language": "javascript",
+  "type": "plugin",
+  "description": "Track what you watch in Listick, and see your anime Up next, Plan to watch and lists from Listick.",
+  "author": "Listick",
+  "icon": "https://raw.githubusercontent.com/listicktv/listick-seanime/main/icon.png",
+  "website": "https://github.com/listicktv/listick-seanime",
+  "readme": "https://github.com/listicktv/listick-seanime/blob/main/README.md",
+  "lang": "en",
+  "notes": "Needs a Listick account and a Seanime key from Listick's Settings › Connections › Seanime.",
+  "userConfig": {
+    "version": 1,
+    "requiresConfig": true,
+    "fields": [
+      { "type": "text", "name": "url", "label": "Listick address", "default": "https://listick.tv" },
+      { "type": "text", "name": "key", "label": "API key", "default": "" }
+    ]
+  },
+  "plugin": {
+    "version": "1",
+    "permissions": {
+      "scopes": ["playback"],
+      "allow": {
+        "networkAccess": {
+          "allowedDomains": ["*"],
+          "reasoning": "Your Listick can be listick.tv or any address you host it at."
+        }
+      }
+    }
+  }
+}
