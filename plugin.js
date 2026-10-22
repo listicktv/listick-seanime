@@ -79,13 +79,82 @@ function init() {
         else if (r.ok) {
           const d = r.json(), h = r.headers || {};
           etag = h.etag || h.Etag || h.ETag || '';
-          data.set(d); error.set(''); loadedAt = Date.now();
+          data.set(d); error.set(''); loadedAt = Date.now(); syncHome();
           tray.updateBadge({ number: (d.upNext || []).length, intent: 'info' });
         } else error.set(r.status === 401 ? 'Wrong API key' : r.status === 403 ? 'This key is not a Seanime key' : `Listick answered ${r.status}`);
       } catch (err) { error.set("Can't reach Listick"); }
       loading.set(false);
       tray.update();
     };
+    // ---------- Home ----------
+    const HOME = String.raw`<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{background:transparent!important;color-scheme:dark}
+body{margin:0;color:#fff;font:13px/1.35 Inter,system-ui,sans-serif}
+.bar{display:flex;justify-content:flex-end;margin:0 0 6px}
+.btn{background:rgba(255,255,255,.08);border:0;color:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;font:inherit}
+.picks{display:none;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.picks.on{display:flex}
+.picks label{background:rgba(255,255,255,.06);padding:6px 12px;border-radius:999px;cursor:pointer;user-select:none}
+.sec{margin:0 0 24px}
+h2{font-size:20px;font-weight:600;margin:0 0 10px}
+.row{display:flex;gap:14px;overflow-x:auto;padding:0 0 8px;scrollbar-width:thin}
+.card{flex:0 0 150px;cursor:pointer;background:none;border:0;padding:0;color:inherit;text-align:left;font:inherit}
+.card img,.card i{width:150px;height:225px;border-radius:10px;object-fit:cover;background:#1c1c24;display:block}
+.card b{display:block;margin-top:6px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.card span{color:rgba(255,255,255,.55);font-size:12px}
+</style></head><body>
+<div class="bar"><button class="btn" id="g">Listick rows</button></div>
+<div class="picks" id="p"></div>
+<div id="r"></div>
+<script>
+var W = window.webview, d = null;
+var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+var img = function (u) { return /^https?:\/\//.test(u || '') ? '<img loading="lazy" src="' + esc(u) + '" alt="">' : '<i></i>'; };
+function render() {
+  if (!d) return;
+  document.getElementById('r').innerHTML = d.rows.map(function (r) {
+    return '<div class="sec"><h2>' + esc(r.name) + '</h2><div class="row">' + r.items.map(function (x) {
+      return '<button class="card" data-id="' + Number(x.anilistId) + '">' + img(x.poster) + '<b>' + esc(x.title) + '</b><span>' +
+        (x.episode ? 'Episode ' + Number(x.episode) : esc(x.year || '')) + '</span></button>';
+    }).join('') + '</div></div>';
+  }).join('');
+  document.getElementById('p').innerHTML = d.options.map(function (o) {
+    return '<label><input type="checkbox" value="' + esc(o.id) + '"' + (d.picks.indexOf(o.id) >= 0 ? ' checked' : '') + '> ' + esc(o.name) + '</label>';
+  }).join('');
+}
+document.getElementById('r').addEventListener('click', function (e) {
+  var c = e.target.closest('.card'); if (c) W.send('open', Number(c.getAttribute('data-id')));
+});
+document.getElementById('p').addEventListener('change', function () {
+  W.send('picks', JSON.stringify([].map.call(document.querySelectorAll('#p input:checked'), function (i) { return i.value; })));
+});
+document.getElementById('g').addEventListener('click', function () { document.getElementById('p').classList.toggle('on'); });
+W.on('data', function (v) { d = typeof v === 'string' ? JSON.parse(v) : v; render(); });
+</script></body></html>`;
+    const homePicks = ctx.state($storage.get('homeRows') || []), homeData = ctx.state('');
+    const syncHome = () => {
+      const d = data.get();
+      if (!d) return;
+      const groups = [...(d.lists || []), ...(d.discover || [])], picks = homePicks.get();
+      homeData.set(JSON.stringify({
+        rows: [{ id: 'upnext', name: 'Up next', items: d.upNext || [] }, { id: 'plan', name: 'Plan to watch', items: d.plan || [] },
+          ...picks.map((id) => groups.find((g) => g.id === id)).filter(Boolean)].filter((r) => r.items.length),
+        options: groups.map((g) => ({ id: g.id, name: g.owner ? `${g.name} · ${g.owner}` : g.name })), picks,
+      }));
+    };
+    if (ready) {
+      const home = ctx.newWebview({ slot: 'after-home-screen-toolbar', fullWidth: true, autoHeight: true });
+      home.setContent(() => HOME);
+      home.channel.sync('data', homeData);
+      home.channel.on('open', (id) => { if (Number(id) > 0) ctx.screen.navigateTo('/entry', { id: String(Number(id)) }); });
+      home.channel.on('picks', (v) => {
+        let ids = [];
+        try { ids = JSON.parse(v); } catch (err) { return; }
+        ids = Array.isArray(ids) ? ids.filter((x) => typeof x === 'string').slice(0, 30) : [];
+        $storage.set('homeRows', ids); homePicks.set(ids); syncHome();
+      });
+    }
+
     tray.onOpen(() => { retry(); load(false); });
     ctx.setInterval(() => { retry(); load(true); }, 15 * 60000);
     load(true);

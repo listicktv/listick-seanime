@@ -19,13 +19,14 @@ function seanime(prefs, fails = []) {
   const watchers = {}, store = {}, hooks = {}, calls = [], handlers = {}, listeners = {}, video = {}, nav = [];
   let register = null, renderFn = null, openFn = null, badge = null;
   const $store = { set: (k, v) => { store[k] = v; (watchers[k] || []).forEach((f) => f(v)); }, get: (k) => store[k], watch: (k, f) => { (watchers[k] ||= []).push(f); } };
-  const base = { $store, $getUserPreference: (k) => prefs[k], console: { warn: () => {}, log: () => {}, error: () => {} }, Date, JSON, String, Math, Promise };
+  const storage = {}, $storage = { get: (k) => storage[k], set: (k, v) => { storage[k] = v; } };
+  const base = { $store, $storage, $getUserPreference: (k) => prefs[k], console: { warn: () => {}, log: () => {}, error: () => {} }, Date, JSON, String, Math, Promise };
   const fresh = (fn, extra = {}) => vm.runInNewContext(`(${fn.toString()})`, { ...base, ...extra });
   const component = (type) => (...args) => ({ type, args });
   const tray = new Proxy({
     render: (f) => { renderFn = f; }, onOpen: (f) => { openFn = f; }, update: () => {}, updateBadge: (b) => { badge = b; },
   }, { get: (t, k) => t[k] || component(k) });
-  const refs = [];
+  const refs = [], web = { on: {}, synced: null, html: '' };
   const ctx = {
     fetch: async (url, opts) => {
       calls.push({ url, method: opts.method, body: opts.body ? JSON.parse(opts.body) : null, auth: opts.headers.authorization, inm: opts.headers['if-none-match'] });
@@ -37,6 +38,7 @@ function seanime(prefs, fails = []) {
     state: (v) => ({ get: () => v, set: (n) => { v = n; } }),
     fieldRef: (v) => { const r = { current: v, cbs: [], setValue: (n) => { r.current = n; r.cbs.forEach((f) => f(n)); }, onValueChange: (f) => r.cbs.push(f) }; refs.push(r); return r; },
     newTray: () => tray, setInterval: () => () => {},
+    newWebview: (o) => { web.opts = o; return { setContent: (f) => { web.html = f(); }, channel: { sync: (k, s) => { web.synced = s; }, on: (k, f) => { web.on[k] = f; } } }; },
     eventHandler: (k, f) => { handlers[k] = f; return k; },
     screen: { navigateTo: (path, params) => nav.push([path, params]) },
     playback: { registerEventListener: (f) => { listeners.playback = f; } },
@@ -52,7 +54,7 @@ function seanime(prefs, fails = []) {
     else if (node && node.args) node.args.forEach((a) => (typeof a === 'string' && node.type === 'text' ? out.push(a) : typeof a === 'object' ? texts(a.items || a, out) : null));
     return out;
   };
-  return { calls, handlers, listeners, video, nav, refs, hook, render: () => texts(renderFn()), open: () => openFn(), badge: () => badge };
+  return { calls, handlers, listeners, video, nav, refs, web, storage, hook, render: () => texts(renderFn()), open: () => openFn(), badge: () => badge };
 }
 
 test('without an address and key it asks for them and calls nothing', async () => {
@@ -121,4 +123,18 @@ test('the built-in player and other players show as watching now, then stopped',
     { anilistId: 3000, episode: 2, state: 'playing', progress: 50 },
     { anilistId: 3000, episode: 2, state: 'stopped' },
   ], 'status within a minute of the last send is not sent again');
+});
+
+test('Home shows Up next, Plan to watch and the rows you pick, and opens an anime', async () => {
+  const s = seanime({ url: 'https://listick.example', key: 'k123' });
+  await tick();
+  assert.equal(s.web.opts.slot, 'after-home-screen-toolbar');
+  assert.match(s.web.html, /esc\(x\.title\)/, 'titles are escaped');
+  const home = () => JSON.parse(s.web.synced.get());
+  assert.deepEqual(home().rows.map((r) => r.name), ['Up next', 'Plan to watch']);
+  s.web.on.picks(JSON.stringify(['anime-trending', 7]));
+  assert.deepEqual(home().rows.map((r) => r.name), ['Up next', 'Plan to watch', 'Trending anime'], 'a picked row');
+  assert.deepEqual(plain(s.storage.homeRows), ['anime-trending'], 'kept for next time');
+  s.web.on.open(154587);
+  assert.deepEqual(plain(s.nav), [['/entry', { id: '154587' }]]);
 });

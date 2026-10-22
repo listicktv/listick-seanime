@@ -35,7 +35,8 @@
     "version": "1",
     "permissions": {
       "scopes": [
-        "playback"
+        "playback",
+        "storage"
       ],
       "allow": {
         "networkAccess": {
