@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/listicktv/listick-seanime/compare/v0.2.0...v0.3.0) (2026-10-22)
+
+
+### Features
+
+* Listick rows on Seanime's Home ([35b582a](https://github.com/listicktv/listick-seanime/commit/35b582a102a350d5810cc84dee350c17a0b7d96e))
+
 ## [0.2.0](https://github.com/listicktv/listick-seanime/compare/v0.1.0...v0.2.0) (2026-10-22)
 
 

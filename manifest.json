@@ -1,7 +1,7 @@
 {
   "id": "listick",
   "name": "Listick",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "manifestURI": "https://raw.githubusercontent.com/listicktv/listick-seanime/main/manifest.json",
   "payloadURI": "https://github.com/listicktv/listick-seanime/releases/latest/download/plugin.js",
   "language": "javascript",
