@@ -3,7 +3,7 @@
 A [Seanime](https://seanime.app) plugin for [Listick](https://github.com/listicktv/listick), anime only:
 
 - **Tracking:** episodes Seanime counts go to your Listick history; what's playing shows as watching now.
-- **Home:** poster rows on Seanime's Home: Up next, Plan to watch, and any lists or rows you pick (Listick rows).
+- **Home:** Seanime-style poster rows on Home: Up next, Plan to watch, and any lists or rows you turn on in the tray's **Home rows**.
 - **Tray:** your anime Up next and Plan to watch; your lists, followed lists, Watched and Rated; and Discover (For you and
   Listick's anime rows), each title with Open.
 
@@ -18,7 +18,7 @@ AniList updates are unchanged.
 
 1. In Seanime: **Extensions › Add extension**, with this manifest URL:
    `https://raw.githubusercontent.com/listicktv/listick-seanime/main/manifest.json`
-2. Allow its permissions (playback events, network access to your Listick).
+2. Allow its permissions (playback events, AniList data for the cards, network access to your Listick).
 3. In the plugin's settings, set **Listick address** (for example `https://listick.tv`) and **API key**.
 
 Anime are matched by AniList id via [Fribb's anime-lists](https://github.com/Fribb/anime-lists); unmapped ones are skipped.

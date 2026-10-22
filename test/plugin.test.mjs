@@ -20,7 +20,9 @@ function seanime(prefs, fails = []) {
   let register = null, renderFn = null, openFn = null, badge = null;
   const $store = { set: (k, v) => { store[k] = v; (watchers[k] || []).forEach((f) => f(v)); }, get: (k) => store[k], watch: (k, f) => { (watchers[k] ||= []).push(f); } };
   const storage = {}, $storage = { get: (k) => storage[k], set: (k, v) => { storage[k] = v; } };
-  const base = { $store, $storage, $getUserPreference: (k) => prefs[k], console: { warn: () => {}, log: () => {}, error: () => {} }, Date, JSON, String, Math, Promise };
+  const $anilist = { getAnimeCollection: () => ({ MediaListCollection: { lists: [{ entries: [
+    { progress: 3, status: 'CURRENT', score: 80, media: { id: 154587, title: { romaji: 'Sousou no Frieren', english: "Frieren: Beyond Journey's End", userPreferred: "Frieren: Beyond Journey's End" } } }] }] } }) };
+  const base = { $store, $storage, $anilist, $getUserPreference: (k) => prefs[k], console: { warn: () => {}, log: () => {}, error: () => {} }, Date, JSON, String, Math, Promise };
   const fresh = (fn, extra = {}) => vm.runInNewContext(`(${fn.toString()})`, { ...base, ...extra });
   const component = (type) => (...args) => ({ type, args });
   const tray = new Proxy({
@@ -30,6 +32,9 @@ function seanime(prefs, fails = []) {
   const ctx = {
     fetch: async (url, opts) => {
       calls.push({ url, method: opts.method, body: opts.body ? JSON.parse(opts.body) : null, auth: opts.headers.authorization, inm: opts.headers['if-none-match'] });
+      if (url === 'https://graphql.anilist.co') return { ok: true, status: 200, json: () => ({ data: { Page: { media: JSON.parse(opts.body).variables.ids.map((id) => ({
+        id, title: { romaji: `R${id}`, english: id === 154587 ? "Frieren: Beyond Journey's End" : null, userPreferred: `R${id}` }, coverImage: { extraLarge: `https://img/${id}.jpg` },
+        season: 'FALL', seasonYear: 2023, format: 'TV', status: 'FINISHED', episodes: 28, meanScore: 90 })) } } }) };
       if (url.endsWith('/api/v1/anime')) return opts.headers['if-none-match'] === '"t1"' ? { ok: false, status: 304, headers: {}, json: () => null }
         : { ok: true, status: 200, headers: { Etag: '"t1"' }, json: () => ANIME };
       const status = fails.shift() || 200;
@@ -51,7 +56,7 @@ function seanime(prefs, fails = []) {
   const hook = (name, e) => { let next = false; fresh(hooks[name])({ ...e, next: () => { next = true; } }); return next; };
   const texts = (node, out = []) => {
     if (Array.isArray(node)) node.forEach((n) => texts(n, out));
-    else if (node && node.args) node.args.forEach((a) => (typeof a === 'string' && node.type === 'text' ? out.push(a) : typeof a === 'object' ? texts(a.items || a, out) : null));
+    else if (node && node.args) node.args.forEach((a) => (typeof a === 'string' && (node.type === 'text' || node.type === 'switch') ? out.push(a) : typeof a === 'object' ? texts(a.items || a, out) : null));
     return out;
   };
   return { calls, handlers, listeners, video, nav, refs, web, storage, hook, render: () => texts(renderFn()), open: () => openFn(), badge: () => badge };
@@ -70,7 +75,7 @@ test('an episode Seanime counts goes to Listick as watched', async () => {
   assert.equal(s.hook('onPreUpdateEntryProgress', { mediaId: 1000, progress: 3 }), true, 'the update goes on');
   s.hook('onPreUpdateEntryProgress', { mediaId: 1000, progress: 0 });
   await tick();
-  const plays = s.calls.filter((c) => c.method === 'POST');
+  const plays = s.calls.filter((c) => c.url.endsWith('/api/v1/anime/play'));
   assert.deepEqual(plays.map((c) => [c.url, c.auth, c.body]), [['https://listick.example/api/v1/anime/play', 'Bearer k123', { anilistId: 1000, episode: 3, state: 'watched' }]]);
 });
 
@@ -82,7 +87,7 @@ test('a failed watched send is tried again later, a refused one is not', async (
   await tick();
   s.open();
   await tick();
-  const plays = s.calls.filter((c) => c.method === 'POST').map((c) => c.body.anilistId);
+  const plays = s.calls.filter((c) => c.url.endsWith('/api/v1/anime/play')).map((c) => c.body.anilistId);
   assert.deepEqual(plays, [1000, 4242, 1000]);
 });
 
@@ -117,7 +122,7 @@ test('the built-in player and other players show as watching now, then stopped',
   s.listeners.playback({ state: { mediaId: 3000, episodeNumber: 2, completionPercentage: 0.5 } });
   s.listeners.playback({ isVideoCompleted: true });
   await tick();
-  assert.deepEqual(s.calls.filter((c) => c.method === 'POST').map((c) => c.body), [
+  assert.deepEqual(s.calls.filter((c) => c.url.endsWith('/api/v1/anime/play')).map((c) => c.body), [
     { anilistId: 1000, episode: 4, state: 'playing', progress: 0 },
     { anilistId: 1000, episode: 4, state: 'stopped' },
     { anilistId: 3000, episode: 2, state: 'playing', progress: 50 },
@@ -125,17 +130,29 @@ test('the built-in player and other players show as watching now, then stopped',
   ], 'status within a minute of the last send is not sent again');
 });
 
-test('Home shows Up next, Plan to watch and the rows you pick, and opens an anime', async () => {
+test('Home shows Up next, Plan to watch and the rows you turn on in the tray, as Seanime cards', async () => {
   const s = seanime({ url: 'https://listick.example', key: 'k123' });
-  await tick();
+  for (let i = 0; i < 5; i++) await tick();
   assert.equal(s.web.opts.slot, 'after-home-screen-toolbar');
   assert.match(s.web.html, /esc\(x\.title\)/, 'titles are escaped');
   const home = () => JSON.parse(s.web.synced.get());
   assert.deepEqual(home().rows.map((r) => r.name), ['Up next', 'Plan to watch']);
-  s.web.on.picks(JSON.stringify(['anime-trending', 7]));
-  assert.deepEqual(home().rows.map((r) => r.name), ['Up next', 'Plan to watch', 'Trending anime'], 'a picked row');
+  const f = home().rows[0].items.find((x) => x.anilistId === 154587) || home().rows.flatMap((r) => r.items).find((x) => x.anilistId === 154587);
+  assert.equal(f, undefined, 'Frieren is only in Discover here');
+  const aot = home().rows[0].items[0];
+  assert.deepEqual([aot.title, aot.cover, aot.season, aot.episodes, aot.progress], ['R1000', 'https://img/1000.jpg', 'FALL', 28, 0], 'AniList details');
+  s.handlers['listick-home-view']();
+  const tray = s.render().join(' ');
+  for (const t of ['Your lists', 'Discover', 'Favourites', 'Trending anime']) assert.ok(tray.includes(t), t);
+  s.handlers['listick-home-anime-trending']({ value: true });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.deepEqual(home().rows.map((r) => r.name), ['Up next', 'Plan to watch', 'Trending anime'], 'a row turned on');
   assert.deepEqual(plain(s.storage.homeRows), ['anime-trending'], 'kept for next time');
-  assert.deepEqual(home().options.map((o) => o.group), ['lists', 'lists', 'discover'], 'grouped for the picker');
+  const fr = home().rows[2].items[0];
+  assert.deepEqual([fr.title, fr.progress, fr.listStatus, fr.score], ["Frieren: Beyond Journey's End", 3, 'CURRENT', 8], 'your AniList progress, English titles as you prefer');
+  s.handlers['listick-home-anime-trending']({ value: false });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.deepEqual(home().rows.map((r) => r.name), ['Up next', 'Plan to watch'], 'and off again');
   s.web.on.open(154587);
   assert.deepEqual(plain(s.nav), [['/entry', { id: '154587' }]]);
 });

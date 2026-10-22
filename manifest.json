@@ -6,7 +6,7 @@
   "payloadURI": "https://github.com/listicktv/listick-seanime/releases/latest/download/plugin.js",
   "language": "javascript",
   "type": "plugin",
-  "description": "Track what you watch in Listick, and see your anime Up next, Plan to watch and lists from Listick.",
+  "description": "Track what you watch in Listick, with your anime Up next, Plan to watch and lists on Seanime's Home and in the tray.",
   "author": "Listick",
   "icon": "https://raw.githubusercontent.com/listicktv/listick-seanime/main/icon.png",
   "website": "https://github.com/listicktv/listick-seanime",
@@ -36,7 +36,8 @@
     "permissions": {
       "scopes": [
         "playback",
-        "storage"
+        "storage",
+        "anilist"
       ],
       "allow": {
         "networkAccess": {
