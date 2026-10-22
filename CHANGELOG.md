@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/listicktv/listick-seanime/compare/v0.4.0...v0.4.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* no scrollbars around Home rows ([a66266e](https://github.com/listicktv/listick-seanime/commit/a66266e7e819a6abbc8ca3433ae174b4cac9670c))
+
 ## [0.4.0](https://github.com/listicktv/listick-seanime/compare/v0.3.1...v0.4.0) (2026-10-22)
 
 
