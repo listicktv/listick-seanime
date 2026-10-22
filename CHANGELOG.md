@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/listicktv/listick-seanime/compare/v0.3.0...v0.3.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* Home rows styled like Seanime's ([854a89d](https://github.com/listicktv/listick-seanime/commit/854a89d512d24215ac7e225663bbf050263401f0))
+
 ## [0.3.0](https://github.com/listicktv/listick-seanime/compare/v0.2.0...v0.3.0) (2026-10-22)
 
 
