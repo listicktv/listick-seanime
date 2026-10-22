@@ -135,6 +135,7 @@ test('Home shows Up next, Plan to watch and the rows you pick, and opens an anim
   s.web.on.picks(JSON.stringify(['anime-trending', 7]));
   assert.deepEqual(home().rows.map((r) => r.name), ['Up next', 'Plan to watch', 'Trending anime'], 'a picked row');
   assert.deepEqual(plain(s.storage.homeRows), ['anime-trending'], 'kept for next time');
+  assert.deepEqual(home().options.map((o) => o.group), ['lists', 'lists', 'discover'], 'grouped for the picker');
   s.web.on.open(154587);
   assert.deepEqual(plain(s.nav), [['/entry', { id: '154587' }]]);
 });
