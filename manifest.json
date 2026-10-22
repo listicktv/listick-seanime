@@ -1,7 +1,7 @@
 {
   "id": "listick",
   "name": "Listick",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "manifestURI": "https://raw.githubusercontent.com/listicktv/listick-seanime/main/manifest.json",
   "payloadURI": "https://github.com/listicktv/listick-seanime/releases/latest/download/plugin.js",
   "language": "javascript",
@@ -17,17 +17,31 @@
     "version": 1,
     "requiresConfig": true,
     "fields": [
-      { "type": "text", "name": "url", "label": "Listick address", "default": "https://listick.tv" },
-      { "type": "text", "name": "key", "label": "API key", "default": "" }
+      {
+        "type": "text",
+        "name": "url",
+        "label": "Listick address",
+        "default": "https://listick.tv"
+      },
+      {
+        "type": "text",
+        "name": "key",
+        "label": "API key",
+        "default": ""
+      }
     ]
   },
   "plugin": {
     "version": "1",
     "permissions": {
-      "scopes": ["playback"],
+      "scopes": [
+        "playback"
+      ],
       "allow": {
         "networkAccess": {
-          "allowedDomains": ["*"],
+          "allowedDomains": [
+            "*"
+          ],
           "reasoning": "Your Listick can be listick.tv or any address you host it at."
         }
       }
