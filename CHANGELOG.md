@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/listicktv/listick-seanime/compare/v0.4.2...v0.4.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* tray sections as buttons that fit the tray ([1608d4c](https://github.com/listicktv/listick-seanime/commit/1608d4c1d297fb61b7a4b14913725df361318630))
+
 ## [0.4.2](https://github.com/listicktv/listick-seanime/compare/v0.4.1...v0.4.2) (2026-10-23)
 
 
