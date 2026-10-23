@@ -91,15 +91,22 @@ test('a failed watched send is tried again later, a refused one is not', async (
   assert.deepEqual(plays, [1000, 4242, 1000]);
 });
 
-test('the tray shows Up next, Plan to watch and lists, opens an anime, and badges Up next', async () => {
+test('the tray shows Up next, Plan to watch, lists and Discover one at a time, opens an anime, and badges Up next', async () => {
   const s = seanime({ url: 'https://listick.example', key: 'k123' });
   await tick();
   assert.equal(s.calls[0].url, 'https://listick.example/api/v1/anime');
   const text = s.render();
-  for (const t of ['Attack on Titan', 'Episode 4', 'Later', 'Solo', 'Frieren']) assert.ok(text.includes(t), t);
-  assert.ok(!text.includes('One Piece'), 'only the picked list shows');
+  for (const t of ['Attack on Titan', 'Episode 4']) assert.ok(text.includes(t), t);
+  assert.ok(!text.includes('Later'), 'one at a time');
+  s.handlers['listick-tab-plan']();
+  assert.ok(s.render().includes('Later'), 'Plan');
+  s.handlers['listick-tab-lists']();
+  assert.ok(s.render().includes('Solo'), 'Lists');
+  assert.ok(!s.render().includes('One Piece'), 'only the picked list shows');
   s.refs[0].setValue('def456');
   assert.ok(s.render().includes('One Piece'), 'another list picked');
+  s.handlers['listick-tab-discover']();
+  assert.ok(s.render().includes('Frieren'), 'Discover');
   assert.deepEqual(plain(s.badge()), { number: 1, intent: 'info' });
   s.handlers['listick-open-1000']();
   assert.deepEqual(plain(s.nav), [['/entry', { id: '1000' }]]);

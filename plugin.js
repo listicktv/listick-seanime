@@ -300,6 +300,9 @@ W.on('data', function (v) { d = typeof v === 'string' ? JSON.parse(v) : v; rende
     load(true);
 
     const refresh = ctx.eventHandler('listick-refresh', () => load(true));
+    const TABS = [['upnext', 'Up next'], ['plan', 'Plan'], ['lists', 'Lists'], ['discover', 'Discover']];
+    const tab = ctx.state('upnext');
+    const pickTab = Object.fromEntries(TABS.map(([id]) => [id, ctx.eventHandler(`listick-tab-${id}`, () => { tab.set(id); tray.update(); })]));
     const row = (x) => tray.flex([
       x.poster ? tray.img(x.poster, { width: '34px', height: '48px', style: { borderRadius: '4px', objectFit: 'cover', flexShrink: '0' } }) : tray.div([], { style: { width: '34px', height: '48px' } }),
       tray.stack([
@@ -332,14 +335,13 @@ W.on('data', function (v) { d = typeof v === 'string' ? JSON.parse(v) : v; rende
       return tray.stack([
         title,
         ...(error.get() ? [tray.text(error.get(), { style: muted })] : []),
-        tray.tabs({ defaultValue: 'upnext', items: [
-          tray.tabsList([tray.tabsTrigger(tray.text('Up next'), { value: 'upnext' }), tray.tabsTrigger(tray.text('Plan'), { value: 'plan' }),
-            tray.tabsTrigger(tray.text('Lists'), { value: 'lists' }), tray.tabsTrigger(tray.text('Discover'), { value: 'discover' })]),
-          tray.tabsContent(rows(d.upNext, 'Nothing up next'), { value: 'upnext' }),
-          tray.tabsContent(rows(d.plan, 'No anime in Plan to watch'), { value: 'plan' }),
-          tray.tabsContent(picker('List', d.lists, listPick, 'No lists with anime'), { value: 'lists' }),
-          tray.tabsContent(picker('Row', d.discover, rowPick, 'No rows yet'), { value: 'discover' }),
-        ] }),
+        tray.flex(TABS.map(([id, name]) => tray.button(name, { size: 'sm', intent: tab.get() === id ? 'primary-subtle' : 'gray-subtle', onClick: pickTab[id] })), { gap: 1 }),
+        ...({
+          upnext: () => rows(d.upNext, 'Nothing up next'),
+          plan: () => rows(d.plan, 'No anime in Plan to watch'),
+          lists: () => picker('List', d.lists, listPick, 'No lists with anime'),
+          discover: () => picker('Row', d.discover, rowPick, 'No rows yet'),
+        })[tab.get()](),
       ], { gap: 2 });
     });
   });
