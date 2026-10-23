@@ -333,9 +333,13 @@ W.on('data', function (v) { d = typeof v === 'string' ? JSON.parse(v) : v; rende
       if (!d) return tray.stack([title, tray.text(error.get() || 'Loading…', { style: muted })]);
       if (homeView.get()) return tray.stack([title, ...homeRows(d)], { gap: 2 });
       return tray.stack([
-        title,
+        tray.flex([
+          ...TABS.map(([id, name]) => tray.button(name, { size: 'xs', intent: tab.get() === id ? 'primary-subtle' : 'gray-subtle', style: tab.get() === id ? {} : { background: 'transparent' }, onClick: pickTab[id] })),
+          tray.div([], { style: { flex: '1' } }),
+          tray.button('Rows', { size: 'xs', intent: 'gray-subtle', onClick: toggleView }),
+          tray.button('Refresh', { size: 'xs', intent: 'gray-subtle', loading: loading.get(), onClick: refresh }),
+        ], { gap: 1, style: { alignItems: 'center' } }),
         ...(error.get() ? [tray.text(error.get(), { style: muted })] : []),
-        tray.flex(TABS.map(([id, name]) => tray.button(name, { size: 'sm', intent: tab.get() === id ? 'primary-subtle' : 'gray-subtle', onClick: pickTab[id] })), { gap: 1 }),
         ...({
           upnext: () => rows(d.upNext, 'Nothing up next'),
           plan: () => rows(d.plan, 'No anime in Plan to watch'),
