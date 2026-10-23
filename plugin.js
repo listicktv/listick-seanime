@@ -91,8 +91,8 @@ function init() {
     const HOME = String.raw`<!doctype html><html><head><meta charset="utf-8"><style>
 html,body{background:transparent!important;color-scheme:dark;overflow:hidden}
 *{box-sizing:border-box}
-body{margin:0;display:flow-root;color:rgb(209,209,209);font:14px/1.4 Inter,"Segoe UI",system-ui,sans-serif;--n:2;--gap:16px;--muted:rgb(140,140,140);--brand:rgb(159,146,255);--pop:rgb(11,11,11)}
-@media(min-width:640px){body{--n:3}}
+body{margin:0;padding:0 16px;display:flow-root;color:rgb(209,209,209);font:14px/1.4 Inter,"Segoe UI",system-ui,sans-serif;--n:2;--gap:16px;--muted:rgb(140,140,140);--brand:rgb(159,146,255);--pop:rgb(11,11,11)}
+@media(min-width:640px){body{--n:3;padding:0 32px}}
 @media(min-width:900px){body{--n:4}}
 @media(min-width:1180px){body{--n:5}}
 @media(min-width:1500px){body{--n:6}}
