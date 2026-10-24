@@ -33,12 +33,13 @@ function init() {
     const retry = async () => { const q = pending; pending = []; for (const b of q) await watched(b); };
     $store.watch('listick:watched', (v) => { if (v) watched({ anilistId: v.id, episode: v.ep, state: 'watched' }); });
 
+    // pct: 0-100
     let now = null, sentAt = 0;
     const playing = (id, ep, pct) => {
       if (!id || !ep) return;
       if (now && now.id === id && now.ep === ep && Date.now() - sentAt < 60000) return;
       now = { id, ep }; sentAt = Date.now();
-      send({ anilistId: id, episode: ep, state: 'playing', progress: pct > 0 && pct <= 1 ? pct * 100 : pct });
+      send({ anilistId: id, episode: ep, state: 'playing', progress: pct });
     };
     const stopped = () => {
       if (!now) return;
@@ -48,17 +49,32 @@ function init() {
     // desktop / external players
     ctx.playback.registerEventListener((e) => {
       if (e.isVideoStopped || e.isVideoCompleted || e.isStreamStopped || e.isStreamCompleted) return stopped();
-      if (e.state) playing(e.state.mediaId, e.state.episodeNumber, e.state.completionPercentage);
+      if (e.state) playing(e.state.mediaId, e.state.episodeNumber, (e.state.completionPercentage || 0) * 100);
     });
-    // built-in player
+    // built-in player: the position from its status events, and asked for every 30 s; sent while it moves
     if (ctx.videoCore) {
-      let cur = null;
+      let cur = null, pos = -1;
+      const seen = {};
+      const at = (from, t, d) => {
+        if (!cur || !(d > 0) || t === pos) return;
+        pos = t;
+        if (!seen[from]) { seen[from] = true; console.log(`listick: position from ${from}`); }
+        playing(cur.id, cur.ep, Math.min(100, (t / d) * 100));
+      };
       ctx.videoCore.addEventListener('video-loaded', (e) => {
         const i = e.state && e.state.playbackInfo;
         cur = i && i.media && i.episode ? { id: i.media.id, ep: i.episode.progressNumber || i.episode.episodeNumber } : null;
+        pos = -1;
         if (cur) playing(cur.id, cur.ep, 0);
       });
-      ctx.videoCore.addEventListener('video-status', (e) => { if (cur && !e.paused && e.duration > 0) playing(cur.id, cur.ep, (e.currentTime / e.duration) * 100); });
+      ctx.videoCore.addEventListener('video-status', (e) => at('status events', e.currentTime, e.duration));
+      ctx.setInterval(async () => {
+        if (!cur) return;
+        try {
+          const s = (await ctx.videoCore.pullStatus()) || ctx.videoCore.getPlaybackStatus();
+          if (s) at('status requests', s.currentTime, s.duration);
+        } catch (err) { console.warn(`listick: position: ${err}`); }
+      }, 30000);
       ctx.videoCore.addEventListener('video-ended', () => stopped());
       ctx.videoCore.addEventListener('video-terminated', () => { stopped(); cur = null; });
     }
