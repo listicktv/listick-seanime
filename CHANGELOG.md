@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/listicktv/listick-seanime/compare/v0.4.4...v0.4.5) (2026-10-24)
+
+
+### Bug Fixes
+
+* built-in player progress reaches Listick ([2e91a00](https://github.com/listicktv/listick-seanime/commit/2e91a00602b9af00782f8dd4c0c1b6112532e35b))
+
 ## [0.4.4](https://github.com/listicktv/listick-seanime/compare/v0.4.3...v0.4.4) (2026-10-23)
 
 
